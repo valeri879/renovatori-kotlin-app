@@ -24,7 +24,9 @@ data class PagedState<T>(
     val error: String? = null,
     /** Next-page failure; shown at the end of the list with a retry. */
     val loadMoreError: String? = null,
-    val nextPage: Int? = null
+    val nextPage: Int? = null,
+    /** Server-side count of all matching items (web "სულ ჩანაწერები"). */
+    val totalItems: Int = 0
 )
 
 /**
@@ -53,7 +55,8 @@ class PagedLoader<T>(
                 _state.value = PagedState(
                     items = page.items.distinctBy(key),
                     isLoading = false,
-                    nextPage = page.pagination.currentPage + 1
+                    nextPage = page.pagination.currentPage + 1,
+                    totalItems = page.pagination.totalItems
                 ).let { if (page.pagination.hasNext) it else it.copy(nextPage = null) }
             } catch (e: ApiError) {
                 _state.update { it.copy(isLoading = false, isRefreshing = false, error = e.message) }
@@ -75,6 +78,7 @@ class PagedLoader<T>(
                     it.copy(
                         items = (it.items + page.items).distinctBy(key),
                         isLoadingMore = false,
+                        totalItems = page.pagination.totalItems,
                         nextPage = if (page.pagination.hasNext) page.pagination.currentPage + 1 else null
                     )
                 }

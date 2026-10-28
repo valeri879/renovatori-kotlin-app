@@ -15,6 +15,24 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ge.renovatori.app.admin.ExpenseAddScreen
+import ge.renovatori.app.admin.ExpenseDetailScreen
+import ge.renovatori.app.admin.ExpenseEntryScreen
+import ge.renovatori.app.admin.ExpenseListScreen
+import ge.renovatori.app.admin.PaidAmountScreen
+import ge.renovatori.app.admin.ProjectHistoryFormScreen
+import ge.renovatori.app.admin.StaffOnly
+import ge.renovatori.app.auth.AuthSession
+import ge.renovatori.app.auth.AuthState
+import ge.renovatori.app.auth.LoginScreen
+import ge.renovatori.app.auth.PasswordChangeScreen
+import ge.renovatori.app.auth.ProfileEditScreen
+import ge.renovatori.app.auth.ProfileScreen
+import ge.renovatori.app.auth.SignupScreen
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Call
@@ -106,13 +124,31 @@ private val secondaryTitles = mapOf(
     Routes.BLOG_DETAIL to "ბლოგი",
     Routes.PROJECT_DETAIL to "პროექტი",
     Routes.COOKIES_POLICY to "ქუქის პოლიტიკა",
-    Routes.PRIVACY_POLICY to "კონფიდენციალურობა"
+    Routes.PRIVACY_POLICY to "კონფიდენციალურობა",
+    Routes.LOGIN to "ავტორიზაცია",
+    Routes.SIGNUP to "რეგისტრაცია",
+    Routes.PROFILE to "პროფილი",
+    Routes.ADMIN_EXPENSES to "ხარჯები",
+    Routes.ADMIN_EXPENSE_ADD to "პროექტის დამატება",
+    Routes.ADMIN_EXPENSE_DETAIL to "ხარჯების დეტალები",
+    Routes.ADMIN_EXPENSE_ENTRY_ADD to "ხარჯის დამატება",
+    Routes.ADMIN_EXPENSE_ENTRY_EDIT to "ხარჯის რედაქტირება",
+    Routes.ADMIN_EXPENSE_PAID_ADD to "ჩარიცხვის დამატება",
+    Routes.PROJECT_HISTORY_ADD to "ისტორიის დამატება",
+    Routes.PROJECT_HISTORY_EDIT to "ისტორიის რედაქტირება",
+    Routes.PROFILE_EDIT to "პროფილის რედაქტირება",
+    Routes.PASSWORD_CHANGE to "პაროლის შეცვლა"
 )
 
 /** Detail pages show a back arrow instead of the menu (web breadcrumb). */
-private val detailRoutes = setOf(Routes.BLOG_DETAIL, Routes.PROJECT_DETAIL)
+private val detailRoutes = setOf(
+    Routes.BLOG_DETAIL, Routes.PROJECT_DETAIL,
+    Routes.ADMIN_EXPENSE_ADD, Routes.ADMIN_EXPENSE_DETAIL, Routes.ADMIN_EXPENSE_ENTRY_ADD, Routes.ADMIN_EXPENSE_ENTRY_EDIT, Routes.ADMIN_EXPENSE_PAID_ADD,
+    Routes.PROJECT_HISTORY_ADD, Routes.PROJECT_HISTORY_EDIT, Routes.PROFILE_EDIT, Routes.PASSWORD_CHANGE
+)
 
-private val topLevelRoutes = Destination.entries.map { it.route }.toSet() + footerPages.map { it.first }
+private val topLevelRoutes =
+    Destination.entries.map { it.route }.toSet() + footerPages.map { it.first } + setOf(Routes.LOGIN, Routes.SIGNUP, Routes.PROFILE, Routes.ADMIN_EXPENSES)
 
 /** App shell: navigation drawer (the web `navbar-collapse` menu) + top app bar + NavHost. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -124,18 +160,30 @@ fun RenovatoriApp() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val current = Destination.entries.firstOrNull { it.route == currentRoute }
+    val authState by AuthSession.state.collectAsStateWithLifecycle()
 
     val navigator = remember(navController) {
-        AppNavigator { route ->
-            if (route in topLevelRoutes) {
-                // Menu-level pages replace the stack like switching sections; each keeps its scroll/state.
-                navController.navigate(route) {
-                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                    launchSingleTop = true
-                    restoreState = true
+        object : AppNavigator {
+            override fun navigate(route: String, replaceCurrent: Boolean) {
+                val currentId = navController.currentBackStackEntry?.destination?.id
+                if (route in topLevelRoutes) {
+                    // Menu-level pages replace the stack like switching sections; each keeps its scroll/state.
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                } else {
+                    navController.navigate(route) {
+                        launchSingleTop = true
+                        // A finished form gives way to its result instead of staying in the back stack.
+                        if (replaceCurrent && currentId != null) popUpTo(currentId) { inclusive = true }
+                    }
                 }
-            } else {
-                navController.navigate(route) { launchSingleTop = true }
+            }
+
+            override fun back() {
+                navController.popBackStack()
             }
         }
     }
@@ -152,6 +200,8 @@ fun RenovatoriApp() {
                 ModalDrawerSheet {
                     Column(Modifier.verticalScroll(rememberScrollState())) {
                         DrawerHeader()
+                        AccountSection(authState, currentRoute, openRoute)
+                        AdminSection(authState, currentRoute, openRoute)
                         Destination.entries.forEach { destination ->
                             NavigationDrawerItem(
                                 label = { Text(destination.label, fontWeight = FontWeight.Bold) },
@@ -226,10 +276,159 @@ fun RenovatoriApp() {
                     composable(Routes.CONTACT) { ContactScreen() }
                     composable(Routes.COOKIES_POLICY) { StaticPageScreen(cookiesPolicy) }
                     composable(Routes.PRIVACY_POLICY) { StaticPageScreen(privacyPolicy) }
+                    composable(Routes.LOGIN) {
+                        // Signing in (here or elsewhere) moves on to the profile, like the web redirect.
+                        if (authState is AuthState.Authenticated) {
+                            LaunchedEffect(Unit) { navigator.navigate(Routes.PROFILE) }
+                        } else {
+                            LoginScreen()
+                        }
+                    }
+                    composable(Routes.SIGNUP) {
+                        if (authState is AuthState.Authenticated) {
+                            LaunchedEffect(Unit) { navigator.navigate(Routes.PROFILE) }
+                        } else {
+                            SignupScreen()
+                        }
+                    }
+                    composable(Routes.ADMIN_EXPENSES) { StaffOnly { user -> ExpenseListScreen(isAdmin = user.isAdmin) } }
+                    composable(Routes.ADMIN_EXPENSE_ADD) {
+                        StaffOnly { user ->
+                            // Moderators can only view (web: admins-only form; server: 403).
+                            if (user.isAdmin) ExpenseAddScreen() else Text("ამ მოქმედებას მხოლოდ ადმინისტრატორი ასრულებს.", Modifier.padding(24.dp))
+                        }
+                    }
+                    composable(Routes.ADMIN_EXPENSE_DETAIL, arguments = listOf(navArgument("id") { type = NavType.StringType })) { entry ->
+                        StaffOnly { ExpenseDetailScreen(entry.arguments?.getString("id").orEmpty()) }
+                    }
+                    composable(Routes.ADMIN_EXPENSE_ENTRY_ADD, arguments = listOf(navArgument("id") { type = NavType.StringType })) { entry ->
+                        StaffOnly { user ->
+                            if (user.isAdmin) ExpenseEntryScreen(entry.arguments?.getString("id").orEmpty(), entryId = null)
+                            else Text("ამ მოქმედებას მხოლოდ ადმინისტრატორი ასრულებს.", Modifier.padding(24.dp))
+                        }
+                    }
+                    composable(
+                        Routes.ADMIN_EXPENSE_ENTRY_EDIT,
+                        arguments = listOf(navArgument("id") { type = NavType.StringType }, navArgument("entryId") { type = NavType.StringType })
+                    ) { entry ->
+                        StaffOnly { user ->
+                            if (user.isAdmin) ExpenseEntryScreen(entry.arguments?.getString("id").orEmpty(), entry.arguments?.getString("entryId"))
+                            else Text("ამ მოქმედებას მხოლოდ ადმინისტრატორი ასრულებს.", Modifier.padding(24.dp))
+                        }
+                    }
+                    composable(Routes.ADMIN_EXPENSE_PAID_ADD, arguments = listOf(navArgument("id") { type = NavType.StringType })) { entry ->
+                        StaffOnly { user ->
+                            if (user.isAdmin) PaidAmountScreen(entry.arguments?.getString("id").orEmpty())
+                            else Text("ამ მოქმედებას მხოლოდ ადმინისტრატორი ასრულებს.", Modifier.padding(24.dp))
+                        }
+                    }
+                    composable(Routes.PROJECT_HISTORY_ADD, arguments = listOf(navArgument("id") { type = NavType.StringType })) { entry ->
+                        StaffOnly { user ->
+                            if (user.isAdmin) ProjectHistoryFormScreen(entry.arguments?.getString("id").orEmpty(), historyId = null)
+                            else Text("ამ მოქმედებას მხოლოდ ადმინისტრატორი ასრულებს.", Modifier.padding(24.dp))
+                        }
+                    }
+                    composable(
+                        Routes.PROJECT_HISTORY_EDIT,
+                        arguments = listOf(navArgument("id") { type = NavType.StringType }, navArgument("historyId") { type = NavType.StringType })
+                    ) { entry ->
+                        StaffOnly { user ->
+                            if (user.isAdmin) ProjectHistoryFormScreen(entry.arguments?.getString("id").orEmpty(), entry.arguments?.getString("historyId"))
+                            else Text("ამ მოქმედებას მხოლოდ ადმინისტრატორი ასრულებს.", Modifier.padding(24.dp))
+                        }
+                    }
+                    composable(Routes.PROFILE_EDIT) {
+                        when (val auth = authState) {
+                            is AuthState.Authenticated -> ProfileEditScreen(auth.user)
+                            AuthState.Unauthenticated -> LoginScreen()
+                        }
+                    }
+                    composable(Routes.PASSWORD_CHANGE) {
+                        when (authState) {
+                            is AuthState.Authenticated -> PasswordChangeScreen()
+                            AuthState.Unauthenticated -> LoginScreen()
+                        }
+                    }
+                    composable(Routes.PROFILE) {
+                        // Profile needs a session; without one it shows the login form (web: redirect to /login).
+                        when (val auth = authState) {
+                            is AuthState.Authenticated -> ProfileScreen(
+                                auth.user,
+                                onLoggedOut = { navigator.navigate(Routes.HOME) },
+                                onEdit = { navigator.navigate(Routes.PROFILE_EDIT) },
+                                onChangePassword = { navigator.navigate(Routes.PASSWORD_CHANGE) }
+                            )
+                            AuthState.Unauthenticated -> LoginScreen()
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+/**
+ * Web header user area: signed out shows "შესვლა"; signed in shows the greeting bar (green when
+ * the e-mail is verified, red otherwise) with the profile link.
+ */
+@Composable
+private fun AccountSection(authState: AuthState, currentRoute: String?, openRoute: (String) -> Unit) {
+    when (authState) {
+        AuthState.Unauthenticated -> NavigationDrawerItem(
+            label = { Text("შესვლა", fontWeight = FontWeight.Bold) },
+            icon = { Icon(Icons.Default.AccountCircle, contentDescription = null) },
+            selected = currentRoute == Routes.LOGIN || currentRoute == Routes.SIGNUP,
+            onClick = { openRoute(Routes.LOGIN) },
+            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+        )
+
+        is AuthState.Authenticated -> {
+            val user = authState.user
+            Surface(
+                color = if (user.isVerified) Color(0xFFD1E7DD) else Color(0xFFF8D7DA),
+                contentColor = Color(0xFF212529),
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("მოგესალმებით, ${user.firstName}", fontWeight = FontWeight.Bold)
+                    // Status in words too, not only the background color.
+                    if (!user.isVerified) {
+                        Text("ელ-ფოსტა არ არის დადასტურებული", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+            NavigationDrawerItem(
+                label = { Text("პროფილი", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.AccountCircle, contentDescription = null) },
+                selected = currentRoute == Routes.PROFILE,
+                onClick = { openRoute(Routes.PROFILE) },
+                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+            )
+        }
+    }
+    HorizontalDivider(Modifier.padding(vertical = 8.dp, horizontal = 28.dp))
+}
+
+/** Web admin menu (header, admins and moderators): "💸 ხარჯები" for now. */
+@Composable
+private fun AdminSection(authState: AuthState, currentRoute: String?, openRoute: (String) -> Unit) {
+    val user = (authState as? AuthState.Authenticated)?.user ?: return
+    // Only staff see the admin menu; the server checks the role again on every request.
+    if (!user.isAdmin && !user.isModerator) return
+    Text(
+        "ადმინისტრატორის მენიუ",
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 28.dp, vertical = 8.dp)
+    )
+    NavigationDrawerItem(
+        label = { Text("💸 ხარჯები", fontWeight = FontWeight.Bold) },
+        selected = currentRoute?.startsWith("admin/") == true,
+        onClick = { openRoute(Routes.ADMIN_EXPENSES) },
+        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+    )
+    HorizontalDivider(Modifier.padding(vertical = 8.dp, horizontal = 28.dp))
 }
 
 /** Logo + name, like the web `navbar-brand`. */
