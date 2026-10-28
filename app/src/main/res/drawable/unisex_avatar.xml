@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- views/assets/unisex-avatar.svg: neutral placeholder for team members without a photo. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="240dp"
+    android:viewportWidth="320"
+    android:viewportHeight="240">
+    <path android:fillColor="#FFEEF2F7" android:pathData="M0,0h320v240h-320z" />
+    <path android:fillColor="#FFCBD5E1" android:pathData="M118,92a42,42 0,1 1,84 0a42,42 0,1 1,-84 0z" />
+    <path android:fillColor="#FFCBD5E1" android:pathData="M72 214c9-50 42-78 88-78s79 28 88 78" />
+    <path android:fillColor="#FF64748B" android:pathData="M139,88a5,5 0,1 1,10 0a5,5 0,1 1,-10 0z" />
+    <path android:fillColor="#FF64748B" android:pathData="M171,88a5,5 0,1 1,10 0a5,5 0,1 1,-10 0z" />
+    <path
+        android:pathData="M142 112c12 9 25 9 37 0"
+        android:strokeColor="#FF64748B"
+        android:strokeLineCap="round"
+        android:strokeWidth="7" />
+</vector>

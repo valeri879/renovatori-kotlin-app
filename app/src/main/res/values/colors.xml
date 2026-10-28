@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Logo colors from views/assets/favicon.svg. -->
+    <color name="brand_blue">#FF0088FF</color>
+    <color name="brand_light">#FFF5F5F5</color>
+</resources>

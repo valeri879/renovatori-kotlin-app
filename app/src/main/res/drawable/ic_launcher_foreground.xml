@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The "R" from views/assets/favicon.svg, scaled into the adaptive icon safe zone (108dp canvas). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.347"
+        android:scaleY="0.347"
+        android:translateX="8.96"
+        android:translateY="10.63">
+        <path
+            android:fillColor="@color/brand_blue"
+            android:pathData="M128.8 53C140.533 53 150.333 54.5333 158.2 57.6C166.067 60.5333 171.933 65.5333 175.8 72.6C179.8 79.5333 181.8 89.0667 181.8 101.2C181.8 111.333 180.267 119.667 177.2 126.2C174.133 132.6 169.467 137.733 163.2 141.6L187.6 197H144.2L128.4 150.2H122V197H83V80.4L72 53H128.8ZM122 123.4C128.133 123.4 132.667 121.867 135.6 118.8C138.533 115.733 140 110.333 140 102.6C140 96.4667 139.467 91.9333 138.4 89C137.333 85.9333 135.467 83.8667 132.8 82.8C130.267 81.7333 126.667 81.2 122 81.2V123.4Z" />
+    </group>
+</vector>
